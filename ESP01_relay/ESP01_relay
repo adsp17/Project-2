@@ -1,0 +1,98 @@
+// Please support Youtube Channel ADSP
+// https://www.youtube.com/channel/UCaFqpdENcVNK2Zn4qY-vOzQ
+// VIDEO TUTOR: https://youtu.be/G5P2MRx3vfI
+// GITHUB: https://github.com/adsp17/Project-2
+#include <ESP8266WiFi.h>
+
+const char* ssid = "adhikomputer";
+const char* password = "12345678";
+
+#define RELAY 0
+#define LED 2
+
+WiFiServer server(80);
+int relayState = HIGH;
+
+void setup() {
+  Serial.begin(115200);
+
+  pinMode(RELAY, OUTPUT);
+  pinMode(LED, OUTPUT);
+
+  digitalWrite(RELAY, relayState);
+  digitalWrite(LED, relayState);
+
+  Serial.print("Connecting to ");
+  Serial.println(ssid);
+  WiFi.begin(ssid, password);
+
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+
+  Serial.println("\nWiFi connected");
+  server.begin();
+  Serial.println("Server started");
+
+  Serial.print("ESP8266 IP Address: http://");
+  Serial.println(WiFi.localIP());
+}
+
+void loop() {
+  WiFiClient client = server.available();
+  if (!client) return;
+
+  Serial.println("New Client Connected");
+  while (!client.available()) {
+    delay(1);
+  }
+
+  String request = client.readStringUntil('\r');
+  Serial.print("Request: ");
+  Serial.println(request);
+  client.flush();
+
+  if (request.indexOf("/RELAY=ON") != -1) {
+    relayState = LOW;
+    Serial.println("RELAY ON");
+  } else if (request.indexOf("/RELAY=OFF") != -1) {
+    relayState = HIGH;
+    Serial.println("RELAY OFF");
+  }
+
+  digitalWrite(RELAY, relayState);
+  digitalWrite(LED, relayState);
+
+  // Kirim halaman HTML dengan tampilan yang diubah
+  client.println("HTTP/1.1 200 OK");
+  client.println("Content-Type: text/html");
+  client.println("");
+  client.println("<!DOCTYPE HTML>");
+  client.println("<html>");
+  client.println("<head>");
+  client.println("<title>ESP8266 Relay Control</title>");
+  client.println("<style>");
+  client.println("body { font-family: Arial; display: flex; justify-content: center; align-items: center; height: 100vh; background-color: #f2f2f2; margin: 0; }");
+  client.println(".container { text-align: center; background: #fff; padding: 40px; border-radius: 15px; box-shadow: 0 0 20px rgba(0,0,0,0.1); }");
+  client.println("h2 { color: #333; font-size: 28px; margin-bottom: 30px; }");
+  client.println("a { text-decoration: none; }");
+  client.println(".btn { font-size: 24px; padding: 15px 40px; margin: 15px; border: none; border-radius: 10px; color: white; cursor: pointer; transition: background-color 0.2s ease, transform 0.1s ease; }");
+  client.println(".btn-on { background-color: #4CAF50; }");
+  client.println(".btn-on:hover { background-color: #45a049; }");
+  client.println(".btn-on:active { background-color: #388e3c; transform: scale(0.98); }");
+  client.println(".btn-off { background-color: #f44336; }");
+  client.println(".btn-off:hover { background-color: #e53935; }");
+  client.println(".btn-off:active { background-color: #c62828; transform: scale(0.98); }");
+  client.println("</style>");
+  client.println("</head>");
+  client.println("<body>");
+  client.println("<div class='container'>");
+  client.print("<h2>Relay Status: ");
+  client.print((relayState == LOW) ? "ON" : "OFF");
+  client.println("</h2>");
+  client.println("<a href=\"/RELAY=ON\"><button class='btn btn-on'>TURN ON</button></a>");
+  client.println("<a href=\"/RELAY=OFF\"><button class='btn btn-off'>TURN OFF</button></a>");
+  client.println("</div>");
+  client.println("</body></html>");
+}
